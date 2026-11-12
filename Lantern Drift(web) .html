@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lantern Drift</title>
+<style>
+:root{--bg:#10233a;--ink:#f4e9d0;--glow:#ffb347;--pipe:#2e6f6a;--pipe2:#1f4f4c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0a1626}}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,'Palatino Linotype',serif;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+canvas{background:linear-gradient(#10233a,#27466b 70%,#b86a4b);max-width:100%;max-height:100%;border-radius:12px;display:block}
+#ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+#ui h1{font-size:2.4rem;margin:0 0 .4rem;font-weight:700;letter-spacing:.02em}
+#ui p{margin:.2rem 0;opacity:.85}
+#score{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);left:0;right:0;text-align:center;font-size:2.2rem;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="360" height="560"></canvas></div>
+<div id="score">0</div>
+<div id="ui"><h1>Lantern Drift</h1><p>Tap to float up.</p><p>Slip through the gaps.</p><p id="best"></p></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=360,H=560;
+const ui=document.getElementById('ui'),sc=document.getElementById('score');
+let best=0;try{best=+localStorage.getItem('ld-best')||0}catch(e){}
+let st='idle',y,v,pipes,score,t,trail;
+function fit(){const s=Math.min(innerWidth/W,innerHeight/H);c.style.width=W*s+'px';c.style.height=H*s+'px'}
+addEventListener('resize',fit);fit();
+function reset(){y=H/2;v=0;pipes=[];score=0;t=0;trail=[];sc.textContent=0}
+function start(){reset();st='play';ui.style.display='none';v=-6}
+function over(){st='over';if(score>best){best=score;try{localStorage.setItem('ld-best',best)}catch(e){}}
+ui.style.display='flex';ui.innerHTML='<h1>Burned out</h1><p>Score '+score+'</p><p>Best '+best+'</p><p>Tap to drift again.</p>'}
+function tap(e){e.preventDefault();if(st==='play')v=-6;else if(st==='idle'||st==='over'){setTimeout(()=>{},0);start()}}
+addEventListener('pointerdown',tap);
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp')tap(e)});
+document.getElementById('best').textContent=best?'Best '+best:'';
+reset();
+function step(){
+ if(st==='play'){
+  t++;v+=.34;y+=v;
+  if(t%90===1){const gap=150,top=60+Math.random()*(H-gap-120);pipes.push({x:W+10,top,gap,passed:false})}
+  pipes.forEach(p=>p.x-=2.4+Math.min(score*.05,1.5));
+  pipes=pipes.filter(p=>p.x>-60);
+  trail.push({x:90,y});trail.forEach(q=>q.x-=2.4);trail=trail.filter(q=>q.x>0);
+  for(const p of pipes){
+   if(!p.passed&&p.x+44<90){p.passed=true;score++;sc.textContent=score}
+   if(90+11>p.x&&90-11<p.x+44&&(y-11<p.top||y+11>p.top+p.gap))over();
+  }
+  if(y>H-11||y<-40)over();
+ }
+ draw();requestAnimationFrame(step)
+}
+function draw(){
+ x.clearRect(0,0,W,H);
+ const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#10233a');g.addColorStop(.7,'#27466b');g.addColorStop(1,'#b86a4b');
+ x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle='rgba(244,233,208,.5)';
+ for(let i=0;i<30;i++){x.fillRect((i*97)%W,(i*53)%330,1.5,1.5)}
+ for(const p of pipes){
+  x.fillStyle='#2e6f6a';x.fillRect(p.x,0,44,p.top);x.fillRect(p.x,p.top+p.gap,44,H);
+  x.fillStyle='#1f4f4c';x.fillRect(p.x-4,p.top-16,52,16);x.fillRect(p.x-4,p.top+p.gap,52,16);
+ }
+ for(const q of trail){x.fillStyle='rgba(255,179,71,.25)';x.beginPath();x.arc(q.x,q.y,4,0,7);x.fill()}
+ const by=st==='idle'?H/2+Math.sin(Date.now()/300)*8:y;
+ const r=x.createRadialGradient(90,by,2,90,by,34);r.addColorStop(0,'rgba(255,200,100,.9)');r.addColorStop(1,'rgba(255,179,71,0)');
+ x.fillStyle=r;x.beginPath();x.arc(90,by,34,0,7);x.fill();
+ x.fillStyle='#ffb347';x.beginPath();x.ellipse(90,by,9,12,0,0,7);x.fill();
+ x.fillStyle='#fff3c4';x.beginPath();x.ellipse(90,by,4,6,0,0,7);x.fill();
+}
+step();
+</script>
+</body>
+</html>
